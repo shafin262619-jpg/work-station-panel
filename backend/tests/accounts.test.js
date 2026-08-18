@@ -3,6 +3,7 @@
 const { describe, before, after, test } = require('node:test');
 const assert = require('node:assert');
 const { startTestServer, request } = require('./helpers');
+const { getTodayKey } = require('../src/accountReset');
 
 describe('Account API', () => {
   let ctx;
@@ -98,5 +99,40 @@ describe('Account API', () => {
     assert.strictEqual(status, 204);
     const getRes = await request(ctx.baseUrl, 'GET', `/accounts/${created.body.id}`);
     assert.strictEqual(getRes.status, 404);
+  });
+
+  test('POST /accounts/reset-all makes every account available and records today', async () => {
+    await request(ctx.baseUrl, 'POST', '/accounts', { type: 'monkey', label: 'R1', status: 'limit_reached' });
+    await request(ctx.baseUrl, 'POST', '/accounts', { type: 'claude', label: 'R2', status: 'limit_reached' });
+    const { status, body } = await request(ctx.baseUrl, 'POST', '/accounts/reset-all');
+    assert.strictEqual(status, 200);
+    assert.ok(body.data.length >= 2);
+    assert.ok(body.data.every((a) => a.status === 'available'));
+    const settings = await request(ctx.baseUrl, 'GET', '/settings');
+    assert.strictEqual(settings.body.last_account_reset_date, getTodayKey());
+  });
+
+  test('POST /accounts/:id/mark-used updates last_used_project and last_used_at', async () => {
+    const created = await request(ctx.baseUrl, 'POST', '/accounts', { type: 'monkey', label: 'Used' });
+    const { status, body } = await request(ctx.baseUrl, 'POST', `/accounts/${created.body.id}/mark-used`, {
+      last_used_project: 'Alpha Project',
+    });
+    assert.strictEqual(status, 200);
+    assert.strictEqual(body.last_used_project, 'Alpha Project');
+    assert.ok(body.last_used_at, 'last_used_at should be set');
+    assert.ok(!Number.isNaN(Date.parse(body.last_used_at)));
+  });
+
+  test('POST /accounts/:id/mark-used requires last_used_project', async () => {
+    const created = await request(ctx.baseUrl, 'POST', '/accounts', { type: 'monkey', label: 'NoProj' });
+    const { status } = await request(ctx.baseUrl, 'POST', `/accounts/${created.body.id}/mark-used`, {});
+    assert.strictEqual(status, 400);
+  });
+
+  test('POST /accounts/:id/mark-used returns 404 for a missing account', async () => {
+    const { status } = await request(ctx.baseUrl, 'POST', '/accounts/99999/mark-used', {
+      last_used_project: 'X',
+    });
+    assert.strictEqual(status, 404);
   });
 });

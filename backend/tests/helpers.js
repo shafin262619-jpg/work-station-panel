@@ -3,9 +3,9 @@
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
 
-async function startTestServer() {
+async function startTestServer(options = {}) {
   const db = createDb(':memory:');
-  const app = createApp(db);
+  const app = createApp(db, options);
   const server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}/api`;

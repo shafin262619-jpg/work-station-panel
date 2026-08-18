@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { now, parseId } = require('../helpers');
+const { getTodayKey, maybeRunLazyReset, runDailyReset } = require('../accountReset');
 
 const ACCOUNT_TYPES = ['monkey', 'claude'];
 const ACCOUNT_STATUSES = ['available', 'limit_reached'];
@@ -11,15 +12,45 @@ function buildRow(row) {
   return { ...row };
 }
 
-module.exports = function accountsRouter(db) {
+module.exports = function accountsRouter(db, deps = {}) {
   const router = express.Router();
+  const todayKey = deps.getTodayKey || getTodayKey;
 
-  // GET /api/accounts
+  // GET /api/accounts — lazy-reset fallback first, then the list.
   router.get('/', (req, res) => {
+    maybeRunLazyReset(db, todayKey());
     const rows = db
       .prepare('SELECT * FROM accounts ORDER BY id ASC')
       .all();
     res.json({ data: rows.map(buildRow) });
+  });
+
+  // POST /api/accounts/reset-all — manual reset anytime; also records today
+  // as the reset date so the lazy-reset does not override it again today.
+  router.post('/reset-all', (req, res) => {
+    runDailyReset(db, todayKey());
+    const rows = db
+      .prepare('SELECT * FROM accounts ORDER BY id ASC')
+      .all();
+    res.json({ data: rows.map(buildRow) });
+  });
+
+  // POST /api/accounts/:id/mark-used — mark an account as used in a project.
+  router.post('/:id/mark-used', (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const row = db.prepare('SELECT * FROM accounts WHERE id = ?').get(id);
+    if (!row) return res.status(404).json({ error: 'Account not found' });
+    const { last_used_project } = req.body || {};
+    if (!last_used_project || typeof last_used_project !== 'string' || !last_used_project.trim()) {
+      return res.status(400).json({ error: 'last_used_project is required' });
+    }
+    db.prepare('UPDATE accounts SET last_used_project = ?, last_used_at = ? WHERE id = ?').run(
+      last_used_project.trim(),
+      now(),
+      id
+    );
+    res.json(buildRow(db.prepare('SELECT * FROM accounts WHERE id = ?').get(id)));
   });
 
   // POST /api/accounts

@@ -1,5 +1,28 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk B1 (Account CRUD + daily auto-reset + Reset All + mark-used)
+- **Daily auto-reset দুই লেয়ারে** — `node-cron` (best-effort, লোকাল মিডনাইটে
+  `0 0 * * *`, `server.js`-এ `setupDailyResetCron`) + **lazy-reset ফলব্যাক**
+  (নির্ভরযোগ্য): GET `/api/accounts`-এর শুরুতে `Settings.last_account_reset_date`
+  (`YYYY-MM-DD`) চেক — আজকের তারিখ নতুন হলে সব Account available + তারিখ
+  আপডেট। ফলে সার্ভার বন্ধ থাকলেও পরের লোডে মিসড রিসেট ধরা পড়ে।
+  লজিক `backend/src/accountReset.js`-এ (reset-এ settings singleton
+  create/update, `ai_helping_enabled`/`gemini_api_key` প্রিজার্ভ)।
+- **Reset All এন্ডপয়েন্ট** — `POST /api/accounts/reset-all` — সব Account
+  available + `last_account_reset_date` আজকে (একই দিনে lazy-reset আবার
+  ওভাররাইড করে না)।
+- **Mark-used এন্ডপয়েন্ট** — `POST /api/accounts/:id/mark-used`
+  (`{ last_used_project }`) — last_used_project + last_used_at আপডেট
+  (D1/D2 Coding/Support ট্যাব থেকে কল হবে)।
+- Account CRUD ভেরিফাই/এক্সটেন্ড (type/label/login_link/status/note/
+  last_used_project/last_used_at) — আগে থেকেই A1-এ ছিল, এখন লেআউটে আলাদা
+  reset-all + mark-used রুট।
+- `node-cron ^4.6.0` dependency যোগ (backend)।
+- টেস্ট: lazy-reset mocked date দিয়ে (নতুন দিনে GET → reset + date আপডেট;
+  একই দিনে দ্বিতীয় GET → reset না), node-cron mocked scheduler দিয়ে
+  best-effort টিক টেস্ট, reset-all, mark-used — backend ৯১ + frontend ৩২
+  টা টেস্ট পাস; সব backend ফাইল `node --check` পাস।
+
 ## 2026-08-18 — chunk A4 (project shell + overview + basic notes)
 - `/project/[id]` শেল সম্পূর্ণ (গ্রুপ A শেষ — Phase 1 skeleton complete)।
 - Overview ট্যাব: নাম, তৈরির তারিখ, বর্তমান ফেজ ব্যাজ, GitHub লিংক এডিটেবল

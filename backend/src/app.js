@@ -6,12 +6,12 @@ const accountsRouter = require('./routes/accounts');
 const settingsRouter = require('./routes/settings');
 const notesRouter = require('./routes/notes');
 
-function createApp(db) {
+function createApp(db, options = {}) {
   const app = express();
   app.use(express.json());
 
   app.use('/api/projects', projectsRouter(db));
-  app.use('/api/accounts', accountsRouter(db));
+  app.use('/api/accounts', accountsRouter(db, { getTodayKey: options.getTodayKey }));
   app.use('/api/settings', settingsRouter(db));
   app.use('/api/notes', notesRouter(db));
 
