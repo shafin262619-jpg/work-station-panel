@@ -145,3 +145,75 @@ describe('CodingData phase auto-advance (chunk D1)', () => {
     assert.strictEqual(await phaseOf(project.id), 'Plan');
   });
 });
+
+describe('SupportLog phase auto-advance (chunk D2)', () => {
+  let ctx;
+
+  before(async () => {
+    ctx = await startTestServer();
+  });
+
+  after(async () => {
+    await ctx.close();
+  });
+
+  async function phaseOf(projectId) {
+    const { body } = await request(ctx.baseUrl, 'GET', `/projects/${projectId}`);
+    return body.current_phase;
+  }
+
+  async function forcePhase(projectId, phase) {
+    ctx.db
+      .prepare('UPDATE projects SET current_phase = ? WHERE id = ?')
+      .run(phase, projectId);
+  }
+
+  test('saving the first support log advances Plan → Support', async () => {
+    const project = await createProject(ctx.baseUrl, { name: 'FirstSupport' });
+    const { status } = await request(ctx.baseUrl, 'POST', `/projects/${project.id}/support-logs`, {
+      prompt: 'Debug X',
+      brief: 'done',
+    });
+    assert.strictEqual(status, 201);
+    assert.strictEqual(await phaseOf(project.id), 'Support');
+  });
+
+  test('saving the first support log advances Coding → Support', async () => {
+    const project = await createProject(ctx.baseUrl, { name: 'CodingToSupport' });
+    await forcePhase(project.id, 'Coding');
+    await request(ctx.baseUrl, 'POST', `/projects/${project.id}/support-logs`, {
+      prompt: 'Help',
+    });
+    assert.strictEqual(await phaseOf(project.id), 'Support');
+  });
+
+  test('adding more logs keeps the phase at Support', async () => {
+    const project = await createProject(ctx.baseUrl, { name: 'MoreSupport' });
+    await request(ctx.baseUrl, 'POST', `/projects/${project.id}/support-logs`, {
+      prompt: 'First',
+    });
+    assert.strictEqual(await phaseOf(project.id), 'Support');
+    await request(ctx.baseUrl, 'POST', `/projects/${project.id}/support-logs`, {
+      prompt: 'Second',
+    });
+    assert.strictEqual(await phaseOf(project.id), 'Support');
+  });
+
+  test('does not overwrite Checker with Support', async () => {
+    const project = await createProject(ctx.baseUrl, { name: 'CheckerSupport' });
+    await forcePhase(project.id, 'Checker');
+    await request(ctx.baseUrl, 'POST', `/projects/${project.id}/support-logs`, {
+      prompt: 'Late log',
+    });
+    assert.strictEqual(await phaseOf(project.id), 'Checker');
+  });
+
+  test('selecting a claude account alone does not advance the phase', async () => {
+    const project = await createProject(ctx.baseUrl, { name: 'ClaudeSelectOnly' });
+    const claude = await createAccount(ctx.baseUrl, { type: 'claude', label: 'Claude A' });
+    await request(ctx.baseUrl, 'PUT', `/projects/${project.id}/support`, {
+      active_claude_account_id: claude.id,
+    });
+    assert.strictEqual(await phaseOf(project.id), 'Plan');
+  });
+});

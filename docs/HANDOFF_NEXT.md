@@ -160,14 +160,45 @@
   frontend ৬২ টা টেস্ট পাস**; `npm run build` সফল; লাইভ backend+dev proxy
   smoke-test সফল (Plan→Coding auto-advance, forward-only নিয়ম)।
 
+### chunk D2 — SupportLog backend + active Claude account tracking (এই চাংক ✅)
+- **SupportLog API সম্পূর্ণ** — এন্ট্রি ফরম্যাট: `prompt` (Monkey-কে দেওয়া
+  প্রম্পট), `brief` (Monkey-র ব্রিফ/রেসপন্স, টেক্সট), `timestamp`; সব
+  `project_id`-স্কোপড। CRUD আগে থেকেই A1-এ ছিল; এখন **list এন্ডপয়েন্টে
+  দুটো অর্ডার** — `?order=asc` (পুরনো-থেকে-নতুন, স্ক্রল হিস্ট্রির শীর্ষ) বা
+  `?order=desc` (নতুন-থেকে-পুরনো, **ডিফল্ট**) — `ORDER BY timestamp, id`
+  tiebreak সহ; invalid order → 400। `backend/src/routes/supportLogs.js`।
+- **`active_claude_account_id` → নতুন **SupportData** এন্টিটি** (সিদ্ধান্ত:
+  CodingData-এ এক্সটেন্ড করার বদলে plan_data/coding_data-র মতোই আলাদা
+  singleton `support_data` টেবিল) — `GET/POST/PUT/DELETE
+  /api/projects/:projectId/support`; ফিল্ড ক্লিয়ার করা যায় (`null` PUT-এ)।
+  Account id ভ্যালিডেশন CodingData-র প্যাটার্নে, তবে **type=claude** (monkey
+  বা অ-অস্তিত্বশীল account → 400)। `backend/src/routes/supportData.js` +
+  `db.js` SCHEMA; `POST /api/projects` এখন ফাঁকা `support_data` রো-ও তৈরি
+  করে। Frontend (D3-তে) B2-এর mini-widget (`filterType="claude"` +
+  `activeId`) থেকে সিলেক্ট করলে `PUT /support` → তারপর B1-এর
+  `POST /api/accounts/:id/mark-used` (`last_used_project` = project name)।
+- **Phase auto-advance (forward-only, D1-এরই `maybeAdvancePhase`)**: প্রথম
+  SupportLog এন্ট্রি সেভ হলে (count 1) → `maybeAdvancePhase(..., 'Support')`
+  — Plan/Coding → Support; already-Support/Checker অবস্থায় ওভাররাইট হয় না।
+  শুধু POST-এ ট্রিগার হয় (শুধু claude account সিলেক্ট → না)।
+- **টেস্ট**: `supportLogs.test.js` (+order asc/desc/default/invalid),
+  নতুন `supportData.test.js` (CRUD, claude-type validation, null clear,
+  upsert, scoped), `phaseAdvance.test.js`-এ D2 block (Plan→Support,
+  Coding→Support, একাধিক log → Support থাকা, Checker ওভাররাইট নয়, account
+  select → advance না), `projects.test.js` (+support_data রো),
+  `migration.test.js` (+support_data টেবিল) — **backend ১৩৪ টা + frontend ৬২
+  টা টেস্ট পাস**; `npm run build` সফল; লাইভ backend smoke-test সফল
+  (support_data auto-create, claude select, →Support auto-advance, ordering)।
+
 ## API রুট ম্যাপ (frontend-এ wire করার জন্য)
 ```
 GET/POST    /api/projects
 GET/PUT/DELETE /api/projects/:id
 GET/POST/PUT/PATCH/DELETE /api/projects/:projectId/plan    (PlanData singleton; PATCH /plan/:field — এক ফিল্ড, শুধু তার timestamp)
                                                             (fields: basic_plan, data_collector_log, data_collector_tool_link, final_plan, prompt_guide_file)
-GET/POST/PUT/DELETE /api/projects/:projectId/coding        (CodingData, singleton)
-GET/POST    /api/projects/:projectId/support-logs
+GET/POST/PUT/DELETE /api/projects/:projectId/coding        (CodingData, singleton — active_monkey_account_id, todo_list)
+GET/POST/PUT/DELETE /api/projects/:projectId/support       (SupportData, singleton — active_claude_account_id; D2)
+GET/POST    /api/projects/:projectId/support-logs          (?order=asc|desc — asc পুরনো-থেকে-নতুন, desc ডিফল্ট)
 GET/PUT/DELETE /api/projects/:projectId/support-logs/:id
 GET/POST    /api/projects/:projectId/checker-issues        (?resolved= / ?archived= ফিল্টার)
 GET/PUT/DELETE /api/projects/:projectId/checker-issues/:id
@@ -182,18 +213,21 @@ GET/PUT/DELETE /api/notes/:id
 - `Project` রেসপন্সে `pinned` (0/1) ও `updated_at` (ISO string) থাকে;
   `current_phase` PUT-এ set করা যায় না — forward-only auto-advance
   (`maybeAdvancePhase`): CodingData-তে account select/todo add →
-  Plan→Coding (D1); D2-এ প্রথম SupportLog → →Support।
+  Plan→Coding (D1); প্রথম SupportLog → →Support (D2); E1-এ checker issue →
+  →Checker।
 - Success: single object বা `{ "data": [...] }`; error: `{ "error": "..." }`।
 - Dev: backend `npm start` (ডিফল্ট 3001), frontend `npm run dev` (ডিফল্ট 3000);
   frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**গ্রুপ D (Phase 4 — Coding + Support Claude) শুরু, D1 (Coding ট্যাব) সম্পূর্ণ,
-ম্যানুয়াল মোডে।** পরের কাজ: **chunk D2 (SupportLog backend + active Claude
-account tracking)** — D2-এ SupportLog CRUD/ordering, `active_claude_account_id`
-(CodingData-তেই বা নতুন entity), B1-এর mark-used (type=claude), আর D1-এরই
-`maybeAdvancePhase` প্যাটার্নে →Support auto-advance। প্রম্পট
-`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (D1 লাইন ~690; D2 লাইন ~732)।
+**গ্রুপ D (Phase 4 — Coding + Support Claude) চলছে, D2 (SupportLog backend +
+active Claude account tracking) সম্পূর্ণ, ম্যানুয়াল মোডে।** পরের কাজ:
+**chunk D3 (Support Claude ট্যাব UI + Handover Note)** — D2-এর SupportLog API
+(order asc/desc) + SupportData (`active_claude_account_id`) দিয়ে Support
+ট্যাব: Prompt↔Brief লগ (স্ক্রলযোগ্য হিস্ট্রি + নতুন এন্ট্রি ফর্ম), mini-widget
+দিয়ে Claude account সিলেক্ট (`PUT /support` → `mark-used`), আর "কপি সামারি"
+বাটন (SupportLog + Plan-এর `prompt_guide_file` concatenation)। প্রম্পট
+`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (D3 লাইন ~772)।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান

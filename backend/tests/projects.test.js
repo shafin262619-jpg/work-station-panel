@@ -79,7 +79,7 @@ describe('Projects API', () => {
     assert.strictEqual(status, 404);
   });
 
-  test('POST creates the project plus empty PlanData and CodingData rows', async () => {
+  test('POST creates the project plus empty PlanData, CodingData and SupportData rows', async () => {
     const { status, body } = await request(ctx.baseUrl, 'POST', '/projects', {
       name: 'With Datasets',
     });
@@ -97,6 +97,11 @@ describe('Projects API', () => {
     assert.strictEqual(codingRes.body.project_id, body.id);
     assert.strictEqual(codingRes.body.active_monkey_account_id, null);
     assert.strictEqual(codingRes.body.todo_list, null);
+
+    const supportRes = await request(ctx.baseUrl, 'GET', `/projects/${body.id}/support`);
+    assert.strictEqual(supportRes.status, 200);
+    assert.strictEqual(supportRes.body.project_id, body.id);
+    assert.strictEqual(supportRes.body.active_claude_account_id, null);
   });
 
   test('POST defaults pinned to false and sets updated_at', async () => {

@@ -53,6 +53,59 @@ describe('SupportLog API', () => {
     assert.strictEqual(body.data[0].prompt, 'Second entry');
   });
 
+  test('GET /support-logs supports ?order=asc (oldest first) and ?order=desc (newest first)', async () => {
+    const proj = await createProject(ctx.baseUrl, { name: 'Ordering' });
+    await request(ctx.baseUrl, 'POST', `/projects/${proj.id}/support-logs`, {
+      prompt: 'First',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    });
+    await request(ctx.baseUrl, 'POST', `/projects/${proj.id}/support-logs`, {
+      prompt: 'Second',
+      timestamp: '2026-01-02T00:00:00.000Z',
+    });
+
+    const asc = await request(ctx.baseUrl, 'GET', `/projects/${proj.id}/support-logs?order=asc`);
+    assert.strictEqual(asc.status, 200);
+    assert.deepStrictEqual(
+      asc.body.data.map((l) => l.prompt),
+      ['First', 'Second']
+    );
+
+    const desc = await request(ctx.baseUrl, 'GET', `/projects/${proj.id}/support-logs?order=desc`);
+    assert.deepStrictEqual(
+      desc.body.data.map((l) => l.prompt),
+      ['Second', 'First']
+    );
+  });
+
+  test('GET /support-logs defaults to newest first when no order is given', async () => {
+    const proj = await createProject(ctx.baseUrl, { name: 'OrderDefault' });
+    await request(ctx.baseUrl, 'POST', `/projects/${proj.id}/support-logs`, {
+      prompt: 'First',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    });
+    await request(ctx.baseUrl, 'POST', `/projects/${proj.id}/support-logs`, {
+      prompt: 'Second',
+      timestamp: '2026-01-02T00:00:00.000Z',
+    });
+    const { status, body } = await request(ctx.baseUrl, 'GET', `/projects/${proj.id}/support-logs`);
+    assert.strictEqual(status, 200);
+    assert.deepStrictEqual(
+      body.data.map((l) => l.prompt),
+      ['Second', 'First']
+    );
+  });
+
+  test('GET /support-logs rejects an invalid order', async () => {
+    const { status, body } = await request(
+      ctx.baseUrl,
+      'GET',
+      `/projects/${projectId}/support-logs?order=bogus`
+    );
+    assert.strictEqual(status, 400);
+    assert.ok(body.error);
+  });
+
   test('GET /support-logs/:id returns one entry', async () => {
     const created = await request(ctx.baseUrl, 'POST', `/projects/${projectId}/support-logs`, {
       prompt: 'Single',

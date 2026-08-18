@@ -5,6 +5,7 @@ const { now, parseId, toBool } = require('../helpers');
 
 const planDataRouter = require('./planData');
 const codingDataRouter = require('./codingData');
+const supportDataRouter = require('./supportData');
 const supportLogsRouter = require('./supportLogs');
 const checkerIssuesRouter = require('./checkerIssues');
 
@@ -20,9 +21,10 @@ module.exports = function projectsRouter(db) {
   });
 
   // POST /api/projects — creates the project plus its empty per-project
-  // datasets: a blank PlanData row and a blank CodingData row (singletons).
-  // SupportLog / CheckerIssue are lists, so an empty list needs no rows.
-  // current_phase always starts at "Plan"; pinned defaults to 0.
+  // datasets: a blank PlanData row, a blank CodingData row and a blank
+  // SupportData row (singletons). SupportLog / CheckerIssue are lists, so an
+  // empty list needs no rows. current_phase always starts at "Plan"; pinned
+  // defaults to 0.
   router.post('/', (req, res) => {
     const { name, github_link } = req.body || {};
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -40,6 +42,9 @@ module.exports = function projectsRouter(db) {
     ).run(projectId, ts, ts);
     db.prepare(
       'INSERT INTO coding_data (project_id, created_at, updated_at) VALUES (?, ?, ?)'
+    ).run(projectId, ts, ts);
+    db.prepare(
+      'INSERT INTO support_data (project_id, created_at, updated_at) VALUES (?, ?, ?)'
     ).run(projectId, ts, ts);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
     res.status(201).json(row);
@@ -97,6 +102,7 @@ module.exports = function projectsRouter(db) {
   });
   scopeRouter.use('/plan', planDataRouter(db));
   scopeRouter.use('/coding', codingDataRouter(db));
+  scopeRouter.use('/support', supportDataRouter(db));
   scopeRouter.use('/support-logs', supportLogsRouter(db));
   scopeRouter.use('/checker-issues', checkerIssuesRouter(db));
   router.use('/:projectId', scopeRouter);

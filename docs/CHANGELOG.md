@@ -1,5 +1,27 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk D2 (SupportLog backend + active Claude account tracking)
+- **SupportLog API সম্পূর্ণ** — `prompt`/`brief`/`timestamp` entry, সব
+  `project_id`-স্কোপড; list এন্ডপয়েন্টে **দুই অর্ডার**: `?order=asc`
+  (পুরনো-থেকে-নতুন, scroll history) বা `?order=desc` (**ডিফল্ট**,
+  নতুন-থেকে-পুরনো) — `ORDER BY timestamp, id` tiebreak; invalid order → 400।
+- **`active_claude_account_id` → নতুন **SupportData** এন্টিটি** (সিদ্ধান্ত:
+  plan_data/coding_data-র মতোই আলাদা singleton `support_data` টেবিল; CodingData
+  এক্সটেন্ড করা হয়নি) — `GET/POST/PUT/DELETE /api/projects/:projectId/support`,
+  claude-type account validation (monkey/অ-অস্তিত্বশীল → 400), `null` দিয়ে
+  ক্লিয়ার করা যায়। B1-এর `mark-used`-এর সাথে D3 UI-তে wire হবে।
+- `POST /api/projects` এখন ফাঁকা `support_data` রো-ও তৈরি করে; `db.js` SCHEMA।
+- **Phase auto-advance (forward-only)** — D1-এরই `maybeAdvancePhase` হেল্পার:
+  **প্রথম** SupportLog এন্ট্রি সেভ হলে Plan/Coding → **Support**; already-
+  Support/Checker অবস্থায় ওভাররাইট হয় না; শুধু claude account সিলেক্ট →
+  advance না।
+- টেস্ট: `supportLogs.test.js` (+ordering asc/desc/default/invalid), নতুন
+  `supportData.test.js` (CRUD + claude-type validation + upsert + scoped),
+  `phaseAdvance.test.js` D2 block (Plan→Support, Coding→Support, Checker
+  ওভাররাইট নয়, account select না), `projects.test.js`/`migration.test.js`
+  আপডেট — **backend ১৩৪ + frontend ৬২ টা টেস্ট পাস**; `npm run build` সফল;
+  লাইভ backend smoke-test সফল।
+
 ## 2026-08-18 — chunk D1 (Coding tab — repo link, monkey account select, todo list)
 - `app/project/[id]/coding` পেজে NoteArea-র বদলে **CodingTab** client
   কম্পোনেন্ট (`components/project/CodingTab.jsx`) — ৩টা কার্ড + নোট এরিয়া:

@@ -3,7 +3,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert');
 const Database = require('better-sqlite3');
-const { migrate } = require('../src/db');
+const { migrate, SCHEMA } = require('../src/db');
 
 // Builds a DB with the pre-A3 projects schema (no pinned / updated_at).
 function createLegacyDb() {
@@ -112,6 +112,54 @@ describe('plan_data schema migration (C1)', () => {
       cols.filter((c) => c === 'data_collector_tool_link').length,
       1
     );
+    db.close();
+  });
+});
+
+// Builds a DB with the pre-D2 schema (no support_data table — D2 adds it as a
+// brand-new entity).
+function createLegacyD2Db() {
+  const db = new Database(':memory:');
+  db.exec(`
+    CREATE TABLE projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      current_phase TEXT NOT NULL DEFAULT 'Plan',
+      github_link TEXT
+    );
+    CREATE TABLE support_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      prompt TEXT NOT NULL,
+      brief TEXT,
+      timestamp TEXT NOT NULL
+    );
+  `);
+  db.prepare('INSERT INTO projects (name, created_at) VALUES (?, ?)').run(
+    'LegacyD2',
+    '2026-08-18T00:00:00.000Z'
+  );
+  return db;
+}
+
+describe('support_data schema (D2)', () => {
+  test('creates the support_data table on an existing (pre-D2) DB', () => {
+    const db = createLegacyD2Db();
+    db.exec(SCHEMA);
+    migrate(db);
+
+    const table = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'support_data'")
+      .get();
+    assert.ok(table);
+
+    const cols = db
+      .prepare('PRAGMA table_info(support_data)')
+      .all()
+      .map((c) => c.name);
+    assert.ok(cols.includes('active_claude_account_id'));
+    assert.ok(cols.includes('project_id'));
     db.close();
   });
 });

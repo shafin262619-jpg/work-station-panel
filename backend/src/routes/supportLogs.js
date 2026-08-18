@@ -2,10 +2,20 @@
 
 const express = require('express');
 const { now, parseId } = require('../helpers');
+const { maybeAdvancePhase } = require('../phaseAdvance');
 
 function buildRow(row) {
   if (!row) return null;
   return { ...row };
+}
+
+// The support-log list is used for scrollable chat history, so it supports both
+// directions: ?order=desc (newest first, default) and ?order=asc (oldest
+// first). The id tiebreak keeps ordering stable when timestamps collide.
+function orderClauses(order) {
+  return order === 'asc'
+    ? 'ORDER BY timestamp ASC, id ASC'
+    : 'ORDER BY timestamp DESC, id DESC';
 }
 
 module.exports = function supportLogsRouter(db) {
@@ -16,16 +26,25 @@ module.exports = function supportLogsRouter(db) {
   );
 
   // GET /api/projects/:projectId/support-logs
+  // Optional ?order=asc|desc — asc is oldest-first (top of scroll history),
+  // desc (default) is newest-first.
   router.get('/', (req, res) => {
+    const order = req.query.order;
+    if (order !== undefined && order !== 'asc' && order !== 'desc') {
+      return res.status(400).json({ error: 'order must be either "asc" or "desc"' });
+    }
     const rows = db
       .prepare(
-        'SELECT * FROM support_logs WHERE project_id = ? ORDER BY timestamp DESC, id DESC'
+        `SELECT * FROM support_logs WHERE project_id = ? ${orderClauses(order)}`
       )
       .all(req.projectId);
     res.json({ data: rows.map(buildRow) });
   });
 
   // POST /api/projects/:projectId/support-logs
+  // Saving the first support log means support work has started, so the phase
+  // advances forward-only to "Support" (D2 — same maybeAdvancePhase helper as
+  // D1, so Plan/Coding → Support; already-Support/Checker is never overwritten).
   router.post('/', (req, res) => {
     const { prompt, brief, timestamp } = req.body || {};
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -38,6 +57,10 @@ module.exports = function supportLogsRouter(db) {
       )
       .run(req.projectId, prompt.trim(), brief || null, ts);
     const row = selectById.get(result.lastInsertRowid, req.projectId);
+    const count = db
+      .prepare('SELECT COUNT(*) AS n FROM support_logs WHERE project_id = ?')
+      .get(req.projectId).n;
+    if (count === 1) maybeAdvancePhase(db, req.projectId, 'Support');
     res.status(201).json(buildRow(row));
   });
 
