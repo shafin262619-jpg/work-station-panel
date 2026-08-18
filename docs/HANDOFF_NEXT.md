@@ -190,6 +190,36 @@
   টা টেস্ট পাস**; `npm run build` সফল; লাইভ backend smoke-test সফল
   (support_data auto-create, claude select, →Support auto-advance, ordering)।
 
+### chunk D3 — Support Claude ট্যাব UI + Handover Note (ম্যানুয়াল) (এই চাংক ✅, গ্রুপ D শেষ)
+- `app/project/[id]/support` পেজে NoteArea-র বদলে **SupportTab** client
+  কম্পোনেন্ট (`components/project/SupportTab.jsx`) — ৩টা কার্ড + নোট এরিয়া:
+  1. **Active Claude Account** — B2-এর **AccountMiniWidget** (`filterType="claude"`
+     + `activeId` highlight): সিলেক্ট করলে `PUT /api/projects/:id/support`-এ
+     `active_claude_account_id` সেভ হয়, তারপর B1-এর
+     `POST /api/accounts/:id/mark-used` কল হয় (`last_used_project` = project
+     name)। Current label ডিসপ্লে (D1-এর প্যাটার্ন)।
+  2. **Prompt ↔ Brief Log** — D2-এর SupportLog API `?order=asc` (পুরনো-থেকে-নতুন)
+     দিয়ে পুরো হিস্ট্রি স্ক্রলযোগ্য কন্টেইনারে রেন্ডার; প্রতিটা এন্ট্রি
+     `[prompt] → [brief] → timestamp` ফরম্যাটে। নতুন এন্ট্রি ফর্ম (prompt +
+     brief টেক্সটএরিয়া) → `POST /support-logs`; সেভ হলে নতুন এন্ট্রি তালিকার
+     শেষে যুক্ত হয় (লোড ও অ্যাডে নিচে অটো-স্ক্রল)।
+  3. **Handover Note (ম্যানুয়াল)** — "Copy Summary" বাটন: এই ট্যাবের **পুরো
+     SupportLog + Plan ট্যাবের `prompt_guide_file`** (C1) — `buildHandoverSummary()`
+     pure helper দিয়ে প্লেইন-টেক্সট concatenation (কোনো Gemini কল নেই) →
+     ক্লিপবোর্ডে কপি (`navigator.clipboard` + hidden-textarea fallback);
+     "Copied to clipboard" স্ট্যাটাস ২ সেকেন্ড দেখায়।
+  4. NoteArea (`project:<id>:support` ক্যাটাগরি)।
+- **Gemini-ভিত্তিক ব্রিফ অটো-স্ট্রাকচারিং/স্মার্ট Handover** এই চাংকে নেই —
+  গ্রুপ G-তে (AI Helping ON হলে) যোগ হবে।
+- **টেস্ট** (`frontend/tests/support-tab.test.jsx`): হিস্ট্রি এন্ট্রি
+  prompt/brief/timestamp রেন্ডার, খালি state, new entry → POST /support-logs +
+  রেন্ডার, claude-only মিনি-উইজেট, None selected/current label, select →
+  PUT /support + mark-used, Copy Summary আউটপুটে SupportLog + prompt_guide_file
+  দুটোই আছে (খালি log-ও guide দেখায়), buildHandoverSummary unit —
+  **backend ১৩৪ টা + frontend ৭৪ টা টেস্ট পাস**; `npm run build` সফল; লাইভ
+  backend + dev proxy smoke-test সফল (log add/order, claude select + mark-used,
+  plan patch, /project/1/support 200)।
+
 ## API রুট ম্যাপ (frontend-এ wire করার জন্য)
 ```
 GET/POST    /api/projects
@@ -220,14 +250,12 @@ GET/PUT/DELETE /api/notes/:id
   frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**গ্রুপ D (Phase 4 — Coding + Support Claude) চলছে, D2 (SupportLog backend +
-active Claude account tracking) সম্পূর্ণ, ম্যানুয়াল মোডে।** পরের কাজ:
-**chunk D3 (Support Claude ট্যাব UI + Handover Note)** — D2-এর SupportLog API
-(order asc/desc) + SupportData (`active_claude_account_id`) দিয়ে Support
-ট্যাব: Prompt↔Brief লগ (স্ক্রলযোগ্য হিস্ট্রি + নতুন এন্ট্রি ফর্ম), mini-widget
-দিয়ে Claude account সিলেক্ট (`PUT /support` → `mark-used`), আর "কপি সামারি"
-বাটন (SupportLog + Plan-এর `prompt_guide_file` concatenation)। প্রম্পট
-`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (D3 লাইন ~772)।
+**গ্রুপ D (Phase 4 — Coding + Support Claude) সম্পূর্ণ, ম্যানুয়াল মোডে।**
+AI Helping ON-state ফিচার (ব্রিফ অটো-স্ট্রাকচারিং, স্মার্ট Handover
+জেনারেশন) গ্রুপ G-তে যোগ হবে। পরের কাজ: **গ্রুপ E (Checker Claude, E1
+থেকে)** — CheckerIssue backend + "Send back to Plan" লজিক + cycle archive +
+→Checker phase auto-advance। প্রম্পট
+`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (E1 লাইন ~821)।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান

@@ -1,5 +1,33 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk D3 (Support Claude tab — prompt/brief log + manual handover note)
+- `app/project/[id]/support` পেজে NoteArea-র বদলে **SupportTab** client
+  কম্পোনেন্ট (`components/project/SupportTab.jsx`) — ৩টা কার্ড + নোট এরিয়া:
+  - **Active Claude Account** — B2-এর **AccountMiniWidget** (`filterType="claude"`
+    + `activeId`): সিলেক্ট করলে `PUT /api/projects/:projectId/support` →
+    `active_claude_account_id` সেভ, তারপর `POST /api/accounts/:id/mark-used`
+    (`last_used_project` = project name); current label ডিসপ্লে।
+  - **Prompt ↔ Brief Log** — D2-এর SupportLog API `?order=asc` দিয়ে পুরো
+    হিস্ট্রি **স্ক্রলযোগ্য** কন্টেইনারে `[prompt] → [brief] → timestamp`
+    ফরম্যাটে রেন্ডার; নতুন এন্ট্রি ফর্ম (prompt + brief টেক্সটএরিয়া) →
+    `POST /support-logs`; লোড ও অ্যাডে নিচে অটো-স্ক্রল।
+  - **Handover Note (ম্যানুয়াল)** — "Copy Summary" বাটন: এই ট্যাবের **পুরো
+    SupportLog + Plan ট্যাবের `prompt_guide_file`** concatenation করে
+    (`buildHandoverSummary()` pure helper, কোনো Gemini কল নেই) →
+    `navigator.clipboard` (hidden-textarea fallback সহ) — "Copied to clipboard"
+    স্ট্যাটাস ২ সেকেন্ড। Gemini-ভিত্তিক স্মার্ট ভার্সন গ্রুপ G-তে (AI Helping
+    ON)।
+- `next.config.mjs`-এ `experimental.allowedHosts: ['.monkeycode-ai.live']`
+  যোগ; `globals.css`-এ support-tab/support-account/support-log/support-handover
+  স্টাইল।
+- টেস্ট: `frontend/tests/support-tab.test.jsx` (history render, empty state,
+  add entry → POST + render, claude-only widget, None/current label, select →
+  PUT + mark-used, Copy Summary আউটপুটে SupportLog + prompt_guide_file দুটোই,
+  buildHandoverSummary/copyTextToClipboard unit) — **backend ১৩৪ + frontend ৭৪
+  টা টেস্ট পাস**; `npm run build` সফল; লাইভ backend + dev proxy smoke-test
+  সফল (log add/asc-order, claude select + mark-used, plan patch, support page
+  200)। গ্রুপ D সম্পূর্ণ, ম্যানুয়াল মোডে।
+
 ## 2026-08-18 — chunk D2 (SupportLog backend + active Claude account tracking)
 - **SupportLog API সম্পূর্ণ** — `prompt`/`brief`/`timestamp` entry, সব
   `project_id`-স্কোপড; list এন্ডপয়েন্টে **দুই অর্ডার**: `?order=asc`
