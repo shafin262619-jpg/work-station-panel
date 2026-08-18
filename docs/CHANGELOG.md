@@ -1,5 +1,22 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk C1 (PlanData backend: 4 fields with independent timestamps)
+- `plan_data` singleton রোতে প্রতিটা ফিল্ডের **আলাদা `updated_at` timestamp**
+  (basic_plan, data_collector_log, final_plan, prompt_guide_file) — একটা
+  ফিল্ড আপডেট করলে শুধু তার timestamp বদলায়।
+- নতুন **`PATCH /api/projects/:projectId/plan/:field`** এন্ডপয়েন্ট body
+  `{ "value": string | null }` — field-name প্যারামিটার দিয়ে এক ফিল্ড
+  আপডেট; রো না থাকলে upsert (201); `value: null` দিলে ফিল্ড + timestamp
+  ক্লিয়ার; unknown field / অ-স্ট্রিং value → 400।
+- নতুন **`data_collector_tool_link`** কলাম (data_collector_log সাব-সেকশনের
+  টুল লিংক) — এডিট করলে `data_collector_log_updated_at`-ই বাড়ে। PUT/POST-ও
+  সাপোর্ট করে।
+- `db.js`-এ SCHEMA + `migrate()` আপডেট — পুরনো DB-তে tool link কলাম যোগ
+  (টেবিল থাকলে; idempotent; A3 legacy DB-তে শুধু projects থাকলে skip)।
+- টেস্ট: planData.test.js (per-field timestamp independence, tool link,
+  validation, null clear, upsert) + migration.test.js (C1 কলাম যোগ +
+  idempotent) — backend ১০৪ টা + frontend ৪৩ টা টেস্ট পাস।
+
 ## 2026-08-18 — chunk B2 (AI Accounts page + reusable mini-widget)
 - `/accounts` পেজ সম্পূর্ণ (`AccountsList` client কম্পোনেন্ট): টেবিলে Type,
   Label, Login Link (এক-ক্লিক ওপেন), Status (**ম্যানুয়াল টগল** — status dot

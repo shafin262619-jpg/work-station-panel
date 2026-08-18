@@ -81,11 +81,36 @@
   frontend ৪৩ টা + backend ৯১ টা টেস্ট পাস; `npm run build` সফল; লাইভ
   backend+dev proxy-তে smoke-test সফল।
 
+## গ্রুপ C — Plan ট্যাব (Phase 3)
+
+### chunk C1 — PlanData backend wiring (৪ সাব-সেকশন + timestamps) (এই চাংক ✅)
+- `plan_data` singleton রো প্রতি প্রজেক্টে, ৪টা টেক্সট ফিল্ড:
+  **basic_plan**, **data_collector_log** (+ নতুন **data_collector_tool_link**
+  টুল লিংক ফিল্ড), **final_plan**, **prompt_guide_file**।
+- প্রতিটা ফিল্ডের **আলাদা `updated_at` timestamp** (`basic_plan_updated_at`
+  ইত্যাদি) — একটা ফিল্ড আপডেট হলে শুধু তার timestamp বদলায়।
+  `data_collector_tool_link` নিজে আলাদা timestamp পায় না — এডিট করলে
+  `data_collector_log_updated_at` বাড়ে (একই সাব-সেকশন)।
+- **PATCH এন্ডপয়েন্ট** — `PATCH /api/projects/:projectId/plan/:field` body
+  `{ "value": string | null }` — field-name প্যারামিটার দিয়ে একটার-একটা
+  ফিল্ড আপডেট (রো না থাকলে upsert, 201); `value: null` দিলে ফিল্ড + তার
+  timestamp মুছে যায়। Allowed fields: basic_plan, data_collector_log,
+  data_collector_tool_link, final_plan, prompt_guide_file।
+- PUT/POST-ও tool link সাপোর্ট করে (PUT partial-update + upsert)।
+- `db.js` SCHEMA + `migrate()` — পুরনো DB-তে `data_collector_tool_link`
+  কলাম যোগ (টেবিল থাকলে; idempotent)।
+- **টেস্ট** (`planData.test.js` + `migration.test.js`): প্রতিটা ফিল্ড
+  আলাদা PATCH-এ শুধু নিজের timestamp বদলানো, tool link → log timestamp
+  bump, unknown field/অ-স্ট্রিং value 400, value null clear, upsert, PUT
+  tool link, migration — backend ১০৪ টা + frontend ৪৩ টা টেস্ট পাস;
+  সব ফাইল `node --check` পাস; লাইভ smoke-test সফল।
+
 ## API রুট ম্যাপ (frontend-এ wire করার জন্য)
 ```
 GET/POST    /api/projects
 GET/PUT/DELETE /api/projects/:id
-GET/POST/PUT/DELETE /api/projects/:projectId/plan          (PlanData, singleton)
+GET/POST/PUT/PATCH/DELETE /api/projects/:projectId/plan    (PlanData singleton; PATCH /plan/:field — এক ফিল্ড, শুধু তার timestamp)
+                                                            (fields: basic_plan, data_collector_log, data_collector_tool_link, final_plan, prompt_guide_file)
 GET/POST/PUT/DELETE /api/projects/:projectId/coding        (CodingData, singleton)
 GET/POST    /api/projects/:projectId/support-logs
 GET/PUT/DELETE /api/projects/:projectId/support-logs/:id
@@ -107,11 +132,10 @@ GET/PUT/DELETE /api/notes/:id
   frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**গ্রুপ B (Phase 2 — AI Accounts) সম্পূর্ণ।** পরের কাজ: **গ্রুপ C (Plan
-ট্যাব, C1 থেকে)**। C1: PlanData API সম্পূর্ণ করা — প্রতিটা ফিল্ডের
-(basic_plan, data_collector_log, final_plan, prompt_guide_file) আলাদা
-`updated_at` timestamp + PATCH এন্ডপয়েন্ট। প্রম্পট
-`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ।
+**গ্রুপ C (Phase 3 — Plan ট্যাব) শুরু; chunk C1 (PlanData backend) সম্পূর্ণ।**
+পরের কাজ: **chunk C2 — Plan ট্যাব UI** (frontend-এ ৪টা সাব-সেকশনের এডিট
+ইন্টারফেস, PATCH এন্ডপয়েন্টে wire)। প্রম্পট
+`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` (C1/C2 লাইন ~606/~643)।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান

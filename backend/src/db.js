@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS plan_data (
   basic_plan_updated_at TEXT,
   data_collector_log TEXT,
   data_collector_log_updated_at TEXT,
+  data_collector_tool_link TEXT,
   final_plan TEXT,
   final_plan_updated_at TEXT,
   prompt_guide_file TEXT,
@@ -106,6 +107,18 @@ function migrate(db) {
   if (!projectCols.includes('updated_at')) {
     db.exec('ALTER TABLE projects ADD COLUMN updated_at TEXT');
     db.prepare('UPDATE projects SET updated_at = created_at WHERE updated_at IS NULL').run();
+  }
+  const planTable = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'plan_data'")
+    .get();
+  if (planTable) {
+    const planCols = db
+      .prepare('PRAGMA table_info(plan_data)')
+      .all()
+      .map((c) => c.name);
+    if (!planCols.includes('data_collector_tool_link')) {
+      db.exec('ALTER TABLE plan_data ADD COLUMN data_collector_tool_link TEXT');
+    }
   }
 }
 
