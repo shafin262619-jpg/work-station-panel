@@ -11,6 +11,9 @@ describe('CodingData API', () => {
   before(async () => {
     ctx = await startTestServer();
     projectId = (await createProject(ctx.baseUrl)).id;
+    // A3: POST /projects auto-creates an empty CodingData row. Remove it so
+    // the suite can exercise creation-from-scratch semantics.
+    await request(ctx.baseUrl, 'DELETE', `/projects/${projectId}/coding`);
   });
 
   after(async () => {
@@ -36,6 +39,7 @@ describe('CodingData API', () => {
 
   test('POST /coding rejects non-existent account id', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'BadAccount' });
+    await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}/coding`);
     const { status, body } = await request(ctx.baseUrl, 'POST', `/projects/${other.id}/coding`, {
       active_monkey_account_id: 99999,
     });
@@ -46,6 +50,7 @@ describe('CodingData API', () => {
   test('POST /coding rejects a claude-type account', async () => {
     const claude = await createAccount(ctx.baseUrl, { type: 'claude', label: 'Claude 1' });
     const other = await createProject(ctx.baseUrl, { name: 'WrongType' });
+    await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}/coding`);
     const { status } = await request(ctx.baseUrl, 'POST', `/projects/${other.id}/coding`, {
       active_monkey_account_id: claude.id,
     });
@@ -70,6 +75,7 @@ describe('CodingData API', () => {
 
   test('PUT /coding upserts when missing', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'NoCoding' });
+    await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}/coding`);
     const { status, body } = await request(ctx.baseUrl, 'PUT', `/projects/${other.id}/coding`, {
       todo_list: [],
     });
@@ -79,7 +85,6 @@ describe('CodingData API', () => {
 
   test('DELETE /coding removes CodingData', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'DeleteCoding' });
-    await request(ctx.baseUrl, 'POST', `/projects/${other.id}/coding`, { todo_list: ['x'] });
     const { status } = await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}/coding`);
     assert.strictEqual(status, 204);
     const getRes = await request(ctx.baseUrl, 'GET', `/projects/${other.id}/coding`);
@@ -88,7 +93,7 @@ describe('CodingData API', () => {
 
   test('CodingData is scoped per project', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'ScopedCoding' });
-    await request(ctx.baseUrl, 'POST', `/projects/${other.id}/coding`, { todo_list: ['other'] });
+    await request(ctx.baseUrl, 'PUT', `/projects/${other.id}/coding`, { todo_list: ['other'] });
     const mine = await request(ctx.baseUrl, 'GET', `/projects/${projectId}/coding`);
     assert.deepStrictEqual(mine.body.todo_list, ['task c']);
   });

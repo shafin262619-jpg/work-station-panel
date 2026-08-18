@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const { now, parseId } = require('../helpers');
+const { now, parseId, toBool } = require('../helpers');
 
 const planDataRouter = require('./planData');
 const codingDataRouter = require('./codingData');
@@ -19,18 +19,29 @@ module.exports = function projectsRouter(db) {
     res.json({ data: rows });
   });
 
-  // POST /api/projects
+  // POST /api/projects — creates the project plus its empty per-project
+  // datasets: a blank PlanData row and a blank CodingData row (singletons).
+  // SupportLog / CheckerIssue are lists, so an empty list needs no rows.
+  // current_phase always starts at "Plan"; pinned defaults to 0.
   router.post('/', (req, res) => {
     const { name, github_link } = req.body || {};
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'name is required' });
     }
+    const ts = now();
     const result = db
       .prepare(
-        'INSERT INTO projects (name, created_at, current_phase, github_link) VALUES (?, ?, ?, ?)'
+        'INSERT INTO projects (name, created_at, updated_at, current_phase, github_link, pinned) VALUES (?, ?, ?, ?, ?, 0)'
       )
-      .run(name.trim(), now(), 'Plan', github_link || null);
-    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+      .run(name.trim(), ts, ts, 'Plan', github_link || null);
+    const projectId = result.lastInsertRowid;
+    db.prepare(
+      'INSERT INTO plan_data (project_id, created_at, updated_at) VALUES (?, ?, ?)'
+    ).run(projectId, ts, ts);
+    db.prepare(
+      'INSERT INTO coding_data (project_id, created_at, updated_at) VALUES (?, ?, ?)'
+    ).run(projectId, ts, ts);
+    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
     res.status(201).json(row);
   });
 
@@ -43,7 +54,7 @@ module.exports = function projectsRouter(db) {
     res.json(row);
   });
 
-  // PUT /api/projects/:id
+  // PUT /api/projects/:id — name, github_link, pinned.
   // current_phase is a forward-only auto-advance field (Coding/Support/Checker
   // chunks D1/D2/E1). It is never settable via this route.
   router.put('/:id', (req, res) => {
@@ -51,17 +62,16 @@ module.exports = function projectsRouter(db) {
     if (!id) return res.status(400).json({ error: 'Invalid project id' });
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: 'Project not found' });
-    const { name, github_link } = req.body || {};
+    const { name, github_link, pinned } = req.body || {};
     if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
       return res.status(400).json({ error: 'name must be a non-empty string' });
     }
     const newName = name !== undefined ? name.trim() : row.name;
     const newLink = github_link !== undefined ? github_link || null : row.github_link;
-    db.prepare('UPDATE projects SET name = ?, github_link = ? WHERE id = ?').run(
-      newName,
-      newLink,
-      id
-    );
+    const newPinned = pinned !== undefined ? (toBool(pinned) ? 1 : 0) : row.pinned;
+    db.prepare(
+      'UPDATE projects SET name = ?, github_link = ?, pinned = ?, updated_at = ? WHERE id = ?'
+    ).run(newName, newLink, newPinned, now(), id);
     res.json(db.prepare('SELECT * FROM projects WHERE id = ?').get(id));
   });
 

@@ -78,4 +78,63 @@ describe('Projects API', () => {
     const { status } = await request(ctx.baseUrl, 'GET', '/projects/99999/plan');
     assert.strictEqual(status, 404);
   });
+
+  test('POST creates the project plus empty PlanData and CodingData rows', async () => {
+    const { status, body } = await request(ctx.baseUrl, 'POST', '/projects', {
+      name: 'With Datasets',
+    });
+    assert.strictEqual(status, 201);
+    assert.ok(body.id);
+
+    const planRes = await request(ctx.baseUrl, 'GET', `/projects/${body.id}/plan`);
+    assert.strictEqual(planRes.status, 200);
+    assert.strictEqual(planRes.body.project_id, body.id);
+    assert.strictEqual(planRes.body.basic_plan, null);
+    assert.strictEqual(planRes.body.final_plan, null);
+
+    const codingRes = await request(ctx.baseUrl, 'GET', `/projects/${body.id}/coding`);
+    assert.strictEqual(codingRes.status, 200);
+    assert.strictEqual(codingRes.body.project_id, body.id);
+    assert.strictEqual(codingRes.body.active_monkey_account_id, null);
+    assert.strictEqual(codingRes.body.todo_list, null);
+  });
+
+  test('POST defaults pinned to false and sets updated_at', async () => {
+    const { body } = await request(ctx.baseUrl, 'POST', '/projects', { name: 'Pinned Default' });
+    assert.strictEqual(body.pinned, 0);
+    assert.ok(body.updated_at);
+    assert.strictEqual(body.current_phase, 'Plan');
+  });
+
+  test('PUT toggles pinned and bumps updated_at', async () => {
+    const { body: project } = await request(ctx.baseUrl, 'POST', '/projects', {
+      name: 'Toggle Pin',
+    });
+    assert.strictEqual(project.pinned, 0);
+
+    const pinRes = await request(ctx.baseUrl, 'PUT', `/projects/${project.id}`, { pinned: true });
+    assert.strictEqual(pinRes.status, 200);
+    assert.strictEqual(pinRes.body.pinned, 1);
+
+    const unpinRes = await request(ctx.baseUrl, 'PUT', `/projects/${project.id}`, {
+      pinned: false,
+    });
+    assert.strictEqual(unpinRes.status, 200);
+    assert.strictEqual(unpinRes.body.pinned, 0);
+
+    const getRes = await request(ctx.baseUrl, 'GET', `/projects/${project.id}`);
+    assert.strictEqual(getRes.body.pinned, 0);
+  });
+
+  test('PUT with pinned preserves updated_at freshness (updated_at changes)', async () => {
+    const { body: project } = await request(ctx.baseUrl, 'POST', '/projects', {
+      name: 'Timestamp Bump',
+    });
+    const before = project.updated_at;
+    await new Promise((r) => setTimeout(r, 5));
+    const { body } = await request(ctx.baseUrl, 'PUT', `/projects/${project.id}`, {
+      pinned: true,
+    });
+    assert.ok(body.updated_at > before);
+  });
 });

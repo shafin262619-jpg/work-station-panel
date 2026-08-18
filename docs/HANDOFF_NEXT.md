@@ -10,32 +10,45 @@
 
 ## এখন পর্যন্ত কী শেষ (chunk A2 — Frontend skeleton)
 - `frontend/` ফোল্ডারে **Next.js (App Router, React 19)** অ্যাপ।
-- রাউট স্ট্রাকচার (সব খালি প্লেসহোল্ডার):
+- রাউট স্ট্রাকচার:
   - `/` → Projects হোম
   - `/accounts` → AI Accounts
   - `/settings` → Settings
   - `/project/[id]` → Project shell + **৫টা ট্যাব** (Overview, Plan, Coding,
-    Support Claude, Checker Claude)। ট্যাবগুলো আলাদা sub-route:
-    `/project/[id]` (Overview), `/project/[id]/plan`, `/project/[id]/coding`,
-    `/project/[id]/support`, `/project/[id]/checker`।
-- বেস ডিজাইন টোকেন `app/globals.css`-এর `:root`-এ CSS variables হিসেবে:
-  - কালার: `--color-base` (#0B0C0F), `--color-surface` (#15161B),
-    `--color-surface-elevated` (#1D1F26), `--color-hairline` (#2A2C34),
-    `--color-rim-glow` (#4A4F5C), `--color-text-primary` (#E8E9ED),
-    `--color-text-muted` (#8B8D97), `--color-status-available` (#5FD48A),
-    `--color-status-limit-reached` (#E5637A)
-  - ফন্ট: `--font-display` (Inter Tight/General Sans), `--font-body` (Inter),
-    `--font-mono` (JetBrains Mono/IBM Plex Mono) — system fallback stack
-  - radius: `--radius-sm/md/lg` (16/18/20px), `--radius-global` (18px)
-- কম্পোনেন্ট: `SideNav` (বামে নেভিগেশন রেইল), `ProjectShell` + `ProjectTabs`।
+    Support Claude, Checker Claude) — sub-route সহ।
+- বেস ডিজাইন টোকেন `app/globals.css`-এর `:root`-এ CSS variables হিসেবে।
+- কম্পোনেন্ট: `SideNav`, `ProjectShell` + `ProjectTabs`।
 - **টেস্ট ফ্রেমওয়ার্ক (frontend)**: **Jest + React Testing Library**
-  (`npm test`); প্রতিটা রাউটের smoke test — মোট ১৫টা টেস্ট পাস।
-- `next.config.mjs`-এ `experimental.allowedHosts: ['.monkeycode-ai.live']`
-  (preview host allow-এর জন্য)।
+  (`npm test`)।
+- `next.config.mjs`-এ `/api/:path*` → `http://127.0.0.1:3001` reverse proxy
+  rewrites (frontend-backend separated setup-এর জন্য)।
+
+## এখন পর্যন্ত কী শেষ (chunk A3 — Projects হোম)
+- `/` পেজ পুরোপুরি ফাংশনাল:
+  - সব প্রজেক্টের কার্ড লিস্ট — নাম, current_phase ব্যাজ (Plan/Coding/Support/
+    Checker), সর্বশেষ আপডেটের সময় (`updated_at`, mono টাইমস্ট্যাম্প)।
+  - কার্ডে ক্লিক করলে `/project/[id]` (Overview) পেজে যায়।
+  - বড় **"+ New Project"** বাটন — ক্লিকে `POST /api/projects` দিয়ে নতুন
+    প্রজেক্ট তৈরি হয় (নাম "Untitled Project", current_phase="Plan") সাথে
+    **৪টা খালি ডেটা-সেট**: ফাঁকা PlanData রো + ফাঁকা CodingData রো
+    (SupportLog/CheckerIssue লিস্ট, তাই কোনো রো দরকার নেই) — তারপর
+    `/project/[id]` Overview পেজে রিডাইরেক্ট।
+  - **Pin/Favorite** — প্রতিটা কার্ডে pin/unpin বাটন (`PUT /api/projects/:id`
+    দিয়ে `pinned` টগল)। পিন করা প্রজেক্ট উপরে আলাদা **Pinned** সেকশনে।
+  - **Recently Active** সেকশন — বাকি প্রজেক্টগুলো `updated_at` (না থাকলে
+    `created_at`) অনুযায়ী descending sort।
+- **Backend বদল (A3)**:
+  - `projects` টেবিলে নতুন ফিল্ড `pinned` (INTEGER, default 0) ও `updated_at`
+    (TEXT) — **মাইগ্রেশন সহ** (`db.js`-এর `migrate()`: পুরনো DB-তে `ALTER
+    TABLE` দিয়ে কলাম যোগ করে, `updated_at` backfill `created_at` থেকে)।
+  - `POST /api/projects` এখন প্রজেক্টের সাথে ফাঁকা PlanData/CodingData রো-ও
+    তৈরি করে।
+  - `PUT /api/projects/:id` এখন `pinned` টগল সাপোর্ট করে এবং প্রতিটা update-এ
+    `updated_at` বাম্প করে। `current_phase` এখনো এখানে set করা যায় না
+    (D1/D2/E1-এর forward-only auto-advance)।
 
 ## এই চাংকে ইচ্ছাকৃতভাবে বাকি রাখা হয়েছে (পরের চাংকে)
-- কোনো পেজের আসল ফিচার লজিক নেই (খালি প্লেসহোল্ডার)।
-- API কল ওয়্যার করা হয়নি (A3-A4 থেকে)।
+- Project shell-এর Overview/ট্যাব কনটেন্ট আসলে খালি প্লেসহোল্ডার (A4 থেকে)।
 - `Project.current_phase` auto-advance (D1/D2/E1), Settings/AI ON-state
   লজিক (G), `gemini_api_key` encryption (G), Account lazy-reset (B1)।
 
@@ -55,13 +68,17 @@ GET/POST/PUT/DELETE /api/settings                          (singleton)
 GET/POST    /api/notes                                     (?category= / ?pinned= ফিল্টার)
 GET/PUT/DELETE /api/notes/:id
 ```
+- `Project` রেসপন্সে এখন `pinned` (0/1) ও `updated_at` (ISO string) থাকে।
 - Success: single object বা `{ "data": [...] }`; error: `{ "error": "..." }`।
-- Dev: backend `npm start` (ডিফল্ট 3001), frontend `npm run dev` (ডিফল্ট 3000)।
+- Dev: backend `npm start` (ডিফল্ট 3001), frontend `npm run dev` (ডিফল্ট 3000);
+  frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**চাংক A3 — Projects হোম (frontend)।** Project list + create UI, API কল
-ওয়্যার করা (backend-এর `/api/projects`), project-এর `current_phase` ব্যাজ,
-project shell-এ click করে `/project/[id]`-এ যাওয়া।
+**চাংক A4 — Project shell: Overview + ৪টা খালি ট্যাব + বেসিক নোট ফিল্ড।**
+`/project/[id]` শেল সম্পূর্ণ করো: Overview ট্যাব (নাম, তৈরির তারিখ, বর্তমান
+ফেজ, এডিটেবল GitHub লিংক PATCH, ৪টা ট্যাবে শর্টকাট কার্ড), Plan/Coding/
+Support Claude/Checker Claude ট্যাবে বেসিক নোট এরিয়া (প্লেইন টেক্সট + সেভ
+বাটন), অ্যাক্টিভ ট্যাব হাইলাইট।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান।

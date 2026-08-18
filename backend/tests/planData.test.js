@@ -11,6 +11,9 @@ describe('PlanData API', () => {
   before(async () => {
     ctx = await startTestServer();
     projectId = (await createProject(ctx.baseUrl)).id;
+    // A3: POST /projects auto-creates an empty PlanData row. Remove it so the
+    // suite can exercise creation-from-scratch semantics.
+    await request(ctx.baseUrl, 'DELETE', `/projects/${projectId}/plan`);
   });
 
   after(async () => {
@@ -61,6 +64,7 @@ describe('PlanData API', () => {
 
   test('PUT /plan upserts when no row exists', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'Planless' });
+    await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}/plan`);
     const { status, body } = await request(ctx.baseUrl, 'PUT', `/projects/${other.id}/plan`, {
       prompt_guide_file: 'guide.md',
     });
@@ -70,7 +74,6 @@ describe('PlanData API', () => {
 
   test('DELETE /plan removes PlanData', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'ToDelete' });
-    await request(ctx.baseUrl, 'POST', `/projects/${other.id}/plan`, { basic_plan: 'x' });
     const { status } = await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}/plan`);
     assert.strictEqual(status, 204);
     const getRes = await request(ctx.baseUrl, 'GET', `/projects/${other.id}/plan`);
@@ -79,7 +82,7 @@ describe('PlanData API', () => {
 
   test('PlanData is scoped per project (never mixed)', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'Scoped' });
-    await request(ctx.baseUrl, 'POST', `/projects/${other.id}/plan`, { basic_plan: 'other plan' });
+    await request(ctx.baseUrl, 'PUT', `/projects/${other.id}/plan`, { basic_plan: 'other plan' });
     const mine = await request(ctx.baseUrl, 'GET', `/projects/${projectId}/plan`);
     assert.strictEqual(mine.body.basic_plan, 'step by step');
     const theirs = await request(ctx.baseUrl, 'GET', `/projects/${other.id}/plan`);
@@ -88,7 +91,7 @@ describe('PlanData API', () => {
 
   test('deleting a project cascades to its PlanData', async () => {
     const other = await createProject(ctx.baseUrl, { name: 'Cascade' });
-    await request(ctx.baseUrl, 'POST', `/projects/${other.id}/plan`, { basic_plan: 'cascade me' });
+    await request(ctx.baseUrl, 'PUT', `/projects/${other.id}/plan`, { basic_plan: 'cascade me' });
     await request(ctx.baseUrl, 'DELETE', `/projects/${other.id}`);
     const getRes = await request(ctx.baseUrl, 'GET', `/projects/${other.id}/plan`);
     assert.strictEqual(getRes.status, 404);

@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  updated_at TEXT,
   current_phase TEXT NOT NULL DEFAULT 'Plan',
-  github_link TEXT
+  github_link TEXT,
+  pinned INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -89,6 +91,24 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 `;
 
+// Migrates DBs created before a schema change (chunk A3 added `pinned` and
+// `updated_at` to projects). `CREATE TABLE IF NOT EXISTS` never alters an
+// existing table, so missing columns are added here. New columns are also
+// part of SCHEMA so fresh DBs get them directly.
+function migrate(db) {
+  const projectCols = db
+    .prepare('PRAGMA table_info(projects)')
+    .all()
+    .map((c) => c.name);
+  if (!projectCols.includes('pinned')) {
+    db.exec('ALTER TABLE projects ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!projectCols.includes('updated_at')) {
+    db.exec('ALTER TABLE projects ADD COLUMN updated_at TEXT');
+    db.prepare('UPDATE projects SET updated_at = created_at WHERE updated_at IS NULL').run();
+  }
+}
+
 function createDb(dbPath = DEFAULT_DB_PATH) {
   if (dbPath !== ':memory:') {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -99,7 +119,8 @@ function createDb(dbPath = DEFAULT_DB_PATH) {
     db.pragma('journal_mode = WAL');
   }
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 
-module.exports = { createDb, DEFAULT_DB_PATH, SCHEMA };
+module.exports = { createDb, migrate, DEFAULT_DB_PATH, SCHEMA };

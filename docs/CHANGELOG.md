@@ -1,5 +1,20 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk A3 (Projects home)
+- `/` Projects হোম পেজ ফাংশনাল: প্রজেক্ট কার্ড লিস্ট (নাম, current_phase
+  ব্যাজ, সর্বশেষ আপডেটের সময়), কার্ড ক্লিকে `/project/[id]` নেভিগেশন।
+- "+ New Project" বাটন — নতুন প্রজেক্ট তৈরি (৪টা খালি ডেটা-সেট সহ: ফাঁকা
+  PlanData/CodingData রো, current_phase="Plan") → `/project/[id]` রিডাইরেক্ট।
+- Pin/Favorite — প্রজেক্ট pin/unpin টগল, পিন করা প্রজেক্ট আলাদা Pinned
+  সেকশনে; বাকিগুলো Recently Active সেকশনে (updated_at অনুযায়ী sort)।
+- `projects` টেবিলে `pinned` + `updated_at` ফিল্ড যোগ (মাইগ্রেশন সহ —
+  পুরনো DB-তে `ALTER TABLE`, `updated_at` backfill); `POST /api/projects`
+  এখন PlanData/CodingData ফাঁকা রো-ও তৈরি করে; `PUT` `pinned` সাপোর্ট করে।
+- Frontend-এ `/api` reverse proxy rewrites (Next.js → backend 3001)।
+- টেস্ট: New Project ফ্লো, pin/unpin টগল, sort অর্ডার (pinned আগে, তারপর
+  recently active), migration test — backend ৭৩ + frontend ২৩ টা টেস্ট পাস;
+  `npm run build` সফল।
+
 ## 2026-08-18 — chunk A2 (frontend skeleton)
 - `frontend/` ফোল্ডারে Next.js (App Router, React 19) অ্যাপ।
 - রাউট: `/`, `/accounts`, `/settings`, `/project/[id]` (৫টা ট্যাব sub-route সহ:
