@@ -1,14 +1,11 @@
 import ProjectShell from '@/components/project/ProjectShell';
+import NoteArea from '@/components/project/NoteArea';
 
 export default async function ProjectPlanPage({ params }) {
   const { id } = await params;
   return (
     <ProjectShell projectId={id} activeTab="plan">
-      <div className="card">
-        <p className="page__empty">
-          Plan placeholder — planning workflow lands in a later chunk.
-        </p>
-      </div>
+      <NoteArea projectId={id} tab="plan" label="Plan note" />
     </ProjectShell>
   );
 }

@@ -1,5 +1,17 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk A4 (project shell + overview + basic notes)
+- `/project/[id]` শেল সম্পূর্ণ (গ্রুপ A শেষ — Phase 1 skeleton complete)।
+- Overview ট্যাব: নাম, তৈরির তারিখ, বর্তমান ফেজ ব্যাজ, GitHub লিংক এডিটেবল
+  ফিল্ড (PUT `/api/projects/:id` দিয়ে সেভ), ৪টা ট্যাবে শর্টকাট কার্ড।
+- Plan / Coding / Support Claude / Checker Claude ট্যাবে বেসিক নোট এরিয়া
+  (প্লেইন টেক্সট + সেভ) — notes API-তে `project:<id>:<tab>` ক্যাটাগরিতে
+  সেভ/লোড। আসল ফিচার গ্রুপ C/D/E-তে।
+- অ্যাক্টিভ ট্যাব হাইলাইট (aria-current + design tokens)।
+- `ProjectShell` client কম্পোনেন্ট — হেডারে প্রজেক্টের নাম দেখায়।
+- টেস্ট: ৫-ট্যাব নেভিগেশন, github_link edit+save, note save/load — frontend
+  ৩২ + backend ৭৩ টা টেস্ট পাস; `npm run build` সফল।
+
 ## 2026-08-18 — chunk A3 (Projects home)
 - `/` Projects হোম পেজ ফাংশনাল: প্রজেক্ট কার্ড লিস্ট (নাম, current_phase
   ব্যাজ, সর্বশেষ আপডেটের সময়), কার্ড ক্লিকে `/project/[id]` নেভিগেশন।
