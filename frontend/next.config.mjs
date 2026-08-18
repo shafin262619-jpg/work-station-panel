@@ -4,9 +4,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    allowedHosts: ['.monkeycode-ai.live'],
-  },
 };
 
 export default nextConfig;
