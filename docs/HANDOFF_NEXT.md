@@ -32,7 +32,7 @@
 
 ## গ্রুপ B — AI Accounts ম্যানেজার (Phase 2)
 
-### chunk B1 — Account CRUD + auto-reset + Reset All + mark-used (এই চাংক ✅)
+### chunk B1 — Account CRUD + auto-reset + Reset All + mark-used (✅)
 - **Account CRUD সম্পূর্ণ** — ফিল্ড: type (monkey/claude), label, login_link,
   status (available/limit_reached), note, last_used_project, last_used_at।
 - **Daily auto-reset দুই লেয়ারে**:
@@ -58,6 +58,28 @@
   কল করলে reset না; node-cron mocked scheduler দিয়ে best-effort টিক টেস্ট;
   `runDailyReset`/`maybeRunLazyReset` ইউনিট) + `accounts.test.js`-এ
   reset-all/mark-used ইন্টিগ্রেশন। Backend ৯১ টা + frontend ৩২ টা টেস্ট পাস।
+
+### chunk B2 — AI Accounts পেজ + reusable mini-widget (গ্রুপ B শেষ ✅)
+- `/accounts` পেজ সম্পূর্ণ (client কম্পোনেন্ট `components/accounts/AccountsList.jsx`):
+  - টেবিলে Type, Label, Login Link (এক-ক্লিক ওপেন, `target="_blank"`), Status
+    (**ম্যানুয়াল টগল** — status dot + Available/Limit Reached পিল, PUT দিয়ে),
+    Last used on (project), Last used at (mono টাইমস্ট্যাম্প), Note, Edit/Delete।
+  - **Available সবসময় আগে, Limit Reached নিচে** — `sortAccounts()`
+    (`components/accounts/accountUtils.js`, single source of truth; গ্রুপের
+    মধ্যে label অনুযায়ী)।
+  - **Reset All** বাটন → `POST /api/accounts/reset-all` (B1)।
+  - **Add/Edit/Delete ফর্ম** — `components/accounts/AccountForm.jsx`
+    (type/label/login_link/status/note; client-side validation)।
+  - loading/error/empty state।
+- **Reusable mini-widget** — `components/accounts/AccountMiniWidget.jsx`
+  (কমপ্যাক্ট অ্যাকাউন্ট-স্ট্যাটাস লিস্ট, Available প্রথমে; নিজে `/api/accounts`
+  ফেচ করে; `onSelect` অপশনাল — গ্রুপ D-তে Coding/Support ট্যাবে বসানো হবে)।
+- ডিজাইন টোকেন ব্যবহার করে `globals.css`-এ accounts/table/status-dot/form/
+  mini-widget স্টাইল যোগ।
+- **টেস্ট** (`frontend/tests/accounts.test.jsx`): sort order (available প্রথমে),
+  status টগল, Reset All, add/edit/delete ফর্ম, mini-widget render + onSelect —
+  frontend ৪৩ টা + backend ৯১ টা টেস্ট পাস; `npm run build` সফল; লাইভ
+  backend+dev proxy-তে smoke-test সফল।
 
 ## API রুট ম্যাপ (frontend-এ wire করার জন্য)
 ```
@@ -85,17 +107,15 @@ GET/PUT/DELETE /api/notes/:id
   frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**B2 — AI Accounts পেজ + mini-widget** (গ্রুপ B-এর শেষ চাংক): `/accounts`
-পেজ পূর্ণ করা (Type/Label/Login Link/Status ব্যাজ/note/লাস্ট ইউজ + filter +
-sort + "Reset All" বাটন + নতুন Account যোগ), আর Overview/পাশে একটা mini-widget
-যেখান থেকে quick-select করা যাবে। প্রম্পট
-`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ। B2-এর mini-widget-টা
-D1/D2-এ Coding/Support ট্যাবে account সিলেকশনে রিইউজ হবে (mark-used-এর সাথে
-ওয়্যার করা)।
+**গ্রুপ B (Phase 2 — AI Accounts) সম্পূর্ণ।** পরের কাজ: **গ্রুপ C (Plan
+ট্যাব, C1 থেকে)**। C1: PlanData API সম্পূর্ণ করা — প্রতিটা ফিল্ডের
+(basic_plan, data_collector_log, final_plan, prompt_guide_file) আলাদা
+`updated_at` timestamp + PATCH এন্ডপয়েন্ট। প্রম্পট
+`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান
-  (B1 সেকশন, লাইন ~511)।
+  (B2 সেকশন, লাইন ~565; C1 সেকশন, লাইন ~606)।
 
 ## কনভেনশন
 - single source of truth রাখা, duplicate না করে import করা।

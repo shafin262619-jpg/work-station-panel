@@ -1,5 +1,24 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk B2 (AI Accounts page + reusable mini-widget)
+- `/accounts` পেজ সম্পূর্ণ (`AccountsList` client কম্পোনেন্ট): টেবিলে Type,
+  Label, Login Link (এক-ক্লিক ওপেন), Status (**ম্যানুয়াল টগল** — status dot
+  + Available/Limit Reached পিল, PUT দিয়ে সেভ), Last used on/at, Note,
+  Edit/Delete অ্যাকশন।
+- **Available অ্যাকাউন্ট সবসময় আগে** — `sortAccounts()` (এক জায়গায়,
+  mini-widget-ও একই ফাংশন ব্যবহার করে); গ্রুপের মধ্যে label অনুযায়ী।
+- **Reset All** বাটন → `POST /api/accounts/reset-all` (B1), **Add/Edit/Delete
+  ফর্ম** (`AccountForm`: type/label/login_link/status/note + client-side
+  validation)।
+- **Reusable mini-widget** (`AccountMiniWidget`) — কমপ্যাক্ট অ্যাকাউন্ট-স্ট্যাটাস
+  লিস্ট, নিজে ডেটা ফেচ করে, Available প্রথমে; `onSelect` অপশনাল (গ্রুপ D-তে
+  Coding/Support ট্যাবে বসানো হবে)।
+- ডিজাইন টোকেন-ভিত্তিক স্টাইল `globals.css`-এ (accounts table, status-dot,
+  status-toggle, account-form, mini-widget)।
+- টেস্ট: sort order, status টগল, Reset All, add/edit/delete, mini-widget
+  render + onSelect — frontend ৪৩ + backend ৯১ টা টেস্ট পাস; `npm run build`
+  সফল; লাইভ proxy smoke-test সফল।
+
 ## 2026-08-18 — chunk B1 (Account CRUD + daily auto-reset + Reset All + mark-used)
 - **Daily auto-reset দুই লেয়ারে** — `node-cron` (best-effort, লোকাল মিডনাইটে
   `0 0 * * *`, `server.js`-এ `setupDailyResetCron`) + **lazy-reset ফলব্যাক**
