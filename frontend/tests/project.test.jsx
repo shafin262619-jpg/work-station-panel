@@ -20,9 +20,28 @@ function makeProject(overrides = {}) {
   };
 }
 
+function makePlan() {
+  return {
+    id: 1,
+    project_id: 42,
+    basic_plan: 'bp',
+    basic_plan_updated_at: null,
+    data_collector_log: null,
+    data_collector_log_updated_at: null,
+    data_collector_tool_link: null,
+    final_plan: null,
+    final_plan_updated_at: null,
+    prompt_guide_file: null,
+    prompt_guide_file_updated_at: null,
+  };
+}
+
 function setupFetch(project = makeProject()) {
   const fetchMock = jest.fn((url, options = {}) => {
     const u = String(url);
+    if (u.match(/\/api\/projects\/\d+\/plan$/)) {
+      return Promise.resolve({ ok: true, json: async () => makePlan() });
+    }
     if (u.startsWith('/api/projects/')) {
       if (options.method === 'PUT') {
         const body = JSON.parse(options.body);
@@ -136,11 +155,14 @@ describe('Route /project/[id] tab sub-routes', () => {
     setupFetch();
   });
 
-  it('Plan route renders the shell, activates the Plan tab and shows a note area', async () => {
+  it('Plan route renders the shell, activates the Plan tab and shows the 4 plan sub-sections', async () => {
     await renderPage(ProjectPlanPage);
     await screen.findByRole('heading', { name: 'Alpha' });
     expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByLabelText('Plan note')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Basic Plan')).toBeInTheDocument();
+    expect(screen.getByLabelText('Master Data Collector Log')).toBeInTheDocument();
+    expect(screen.getByLabelText('Final Master Plan')).toBeInTheDocument();
+    expect(screen.getByLabelText('Monkey Prompt & Guide File')).toBeInTheDocument();
   });
 
   it('Coding route activates the Coding tab', async () => {

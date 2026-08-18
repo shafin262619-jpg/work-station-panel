@@ -1,5 +1,24 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk C2 (Plan tab UI — 4 sub-sections with timestamps)
+- `app/project/[id]/plan` পেজে NoteArea-র বদলে **PlanTab** client কম্পোনেন্ট
+  (`components/project/PlanTab.jsx`) — ৪টা সাব-সেকশন কার্ড, C1-এর
+  `PATCH /api/projects/:projectId/plan/:field`-এ wire:
+  - **Basic Plan** (basic_plan), **Master Data Collector Log** +
+    **Tool link** (data_collector_log + data_collector_tool_link),
+    **Final Master Plan** (final_plan), **Monkey Prompt & Guide File**
+    (prompt_guide_file)।
+- প্রতিটা সাব-সেকশন নিজের **per-field timestamp** দেখায়
+  (`Saved YYYY-MM-DD HH:MM` / "Not saved yet"); PATCH-এ শুধু নিজের
+  timestamp বদলায়; tool link সেভে log timestamp বাড়ে।
+- সব ম্যানুয়াল (AI Helping/Gemini generate বাটন নেই — গ্রুপ G)।
+- GET 404 হলে ফাঁকা সেকশন; save-এ upsert।
+- স্টাইল: `globals.css`-এ plan-tab/plan-section block।
+- টেস্ট: `frontend/tests/plan-tab.test.jsx` (৪ সেকশন লোড/সেভ, timestamp,
+  per-field independence, tool link, 404 empty) + project.test.jsx আপডেট —
+  frontend ৫০ + backend ১০৪ টা টেস্ট পাস; `npm run build` সফল; লাইভ
+  proxy smoke-test সফল।
+
 ## 2026-08-18 — chunk C1 (PlanData backend: 4 fields with independent timestamps)
 - `plan_data` singleton রোতে প্রতিটা ফিল্ডের **আলাদা `updated_at` timestamp**
   (basic_plan, data_collector_log, final_plan, prompt_guide_file) — একটা

@@ -105,6 +105,27 @@
   tool link, migration — backend ১০৪ টা + frontend ৪৩ টা টেস্ট পাস;
   সব ফাইল `node --check` পাস; লাইভ smoke-test সফল।
 
+### chunk C2 — Plan ট্যাব UI (৪ সাব-সেকশন কার্ড + timestamps) (গ্রুপ C শেষ ✅)
+- `app/project/[id]/plan/page.js`-তে NoteArea-র বদলে **PlanTab** client
+  কম্পোনেন্ট (`components/project/PlanTab.jsx`) — ৪টা সাব-সেকশন কার্ড,
+  প্রতিটা C1-এর `PATCH /plan/:field` এন্ডপয়েন্টে wire:
+  1. **Basic Plan** (`basic_plan`) — প্রাথমিক আইডিয়া নোট এরিয়া
+  2. **Master Data Collector Log** (`data_collector_log`) + **Tool link**
+     (`data_collector_tool_link`) — লগ টেক্সট + টুল লিংক ইনপুট
+  3. **Final Master Plan** (`final_plan`) — ফাইনাল প্ল্যান পেস্ট
+  4. **Monkey Prompt & Guide File** (`prompt_guide_file`) — ফাইনাল প্রম্পট/গাইড
+- প্রতিটা সাব-সেকশনে **সেভ-করা per-field timestamp** দেখায়
+  (`Saved YYYY-MM-DD HH:MM`, no timestamp হলে "Not saved yet"); লগ সেকশনের
+  timestamp-ই tool link-এরও (C1 কনভেনশন)।
+- সব **ম্যানুয়াল** — কোনো AI Helping/Gemini generate বাটন নেই (গ্রুপ G-তে
+  AI ON-state এ সাব-সেকশন ৩/৪-এ বাটন যুক্ত হবে)।
+- GET 404 হলে (রো নেই) ফাঁকা সেকশন রেন্ডার; PATCH save-এ upsert।
+- **টেস্ট** (`frontend/tests/plan-tab.test.jsx` + project.test.jsx আপডেট):
+  ৪টা সাব-সেকশন সেভ/লোড, টিমস্ট্যাম্প সঠিক দেখানো, per-field timestamp
+  independence (PATCH-এ শুধু নিজের টাইমস্ট্যাম্প বদলায়), tool link save →
+  log timestamp, 404 empty state — backend ১০৪ টা + frontend ৫০ টা টেস্ট
+  পাস; `npm run build` সফল; লাইভ backend+dev proxy smoke-test সফল।
+
 ## API রুট ম্যাপ (frontend-এ wire করার জন্য)
 ```
 GET/POST    /api/projects
@@ -132,14 +153,15 @@ GET/PUT/DELETE /api/notes/:id
   frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**গ্রুপ C (Phase 3 — Plan ট্যাব) শুরু; chunk C1 (PlanData backend) সম্পূর্ণ।**
-পরের কাজ: **chunk C2 — Plan ট্যাব UI** (frontend-এ ৪টা সাব-সেকশনের এডিট
-ইন্টারফেস, PATCH এন্ডপয়েন্টে wire)। প্রম্পট
-`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` (C1/C2 লাইন ~606/~643)।
+**গ্রুপ C (Phase 3 — Plan ট্যাব) সম্পূর্ণ, ম্যানুয়াল মোডে।** AI ON-state
+জেনারেশন গ্রুপ G-তে যোগ হবে। পরের কাজ: **গ্রুপ D (Coding + Support Claude,
+D1 থেকে)** — D1-এ B2-এর mini-widget আর CodingData API ব্যবহার হবে। প্রম্পট
+`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (C2 লাইন ~643; D1 লাইন
+~700)।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান
-  (B2 সেকশন, লাইন ~565; C1 সেকশন, লাইন ~606)।
+  (B2 সেকশন, লাইন ~565; C1 সেকশন, লাইন ~606; C2 সেকশন, লাইন ~643)।
 
 ## কনভেনশন
 - single source of truth রাখা, duplicate না করে import করা।
