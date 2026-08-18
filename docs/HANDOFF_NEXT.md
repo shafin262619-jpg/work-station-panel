@@ -126,6 +126,40 @@
   log timestamp, 404 empty state — backend ১০৪ টা + frontend ৫০ টা টেস্ট
   পাস; `npm run build` সফল; লাইভ backend+dev proxy smoke-test সফল।
 
+## গ্রুপ D — Coding + Support Claude (Phase 4)
+
+### chunk D1 — Coding ট্যাব (repo link + monkey account select + todo list) (এই চাংক ✅)
+- `app/project/[id]/coding` পেজে NoteArea-র বদলে **CodingTab** client
+  কম্পোনেন্ট (`components/project/CodingTab.jsx`) — ৩টা কার্ড + নোট এরিয়া:
+  1. **GitHub Repo** — Overview-এর `github_link` এখানে read-only reuse
+     (ক্লিকেবল লিংক; খালি থাকলে "set it in the Overview tab" হিন্ট)।
+  2. **Active Monkey Account** — B2-এর **AccountMiniWidget** বসানো
+     (`filterType="monkey"` + `activeId` highlight): সিলেক্ট করলে
+     `PUT /api/projects/:projectId/coding`-এ `active_monkey_account_id` সেভ
+     হয়, তারপর B1-এর `POST /api/accounts/:id/mark-used` কল হয়
+     (`last_used_project` = project name → `last_used_at` আপডেট)।
+  3. **Todo Checklist** — `coding_data.todo_list` (JSON array of
+     `{ id, text, done }`) দিয়ে add/check(toggle)/delete; প্রতিটা মিউটেশনে
+     পুরো list `PUT /coding` দিয়ে সেভ। পুরনো string-array ডেটাও
+     normalize করে render হয়।
+  4. NoteArea (`project:<id>:coding` ক্যাটাগরি)।
+- **AccountMiniWidget-এ অপশনাল `filterType` + `activeId` prop** যোগ (নন-ব্রেকিং;
+  `/accounts` পেজ/টেস্ট অপরিবর্তিত)।
+- **Phase auto-advance (forward-only)**: নতুন `backend/src/phaseAdvance.js` —
+  `maybeAdvancePhase(db, projectId, targetPhase)` `['Plan','Coding','Support',
+  'Checker']` অর্ডারে শুধু সামনের দিকে নেয় (updated_at-ও bump)। CodingData
+  POST/PUT-এ **মাংকি অ্যাকাউন্ট সিলেক্ট বা প্রথম todo অ্যাড** হলে
+  `maybeAdvancePhase(..., 'Coding')`; already-Support/Checker অবস্থায়
+  ওভাররাইট হয় না। (D2 একই হেল্পার দিয়ে →Support করবে।)
+- **টেস্ট**: `backend/tests/phaseAdvance.test.js` (হেল্পার unit + codingData
+  integration: Plan→Coding account select/todo add, empty todo/null account
+  advance করে না, Support/Checker-এ ওভাররাইট হয় না) + `frontend/tests/
+  coding-tab.test.jsx` (repo link/hint, monkey-only list, current account,
+  select → PUT + mark-used call, todo add/toggle/delete, note area) +
+  accounts.test.jsx-এ mini-widget filterType/activeId — **backend ১১৫ টা +
+  frontend ৬২ টা টেস্ট পাস**; `npm run build` সফল; লাইভ backend+dev proxy
+  smoke-test সফল (Plan→Coding auto-advance, forward-only নিয়ম)।
+
 ## API রুট ম্যাপ (frontend-এ wire করার জন্য)
 ```
 GET/POST    /api/projects
@@ -146,22 +180,25 @@ GET/POST    /api/notes                                     (?category= / ?pinned
 GET/PUT/DELETE /api/notes/:id
 ```
 - `Project` রেসপন্সে `pinned` (0/1) ও `updated_at` (ISO string) থাকে;
-  `current_phase` PUT-এ set করা যায় না (D1/D2/E1-এ forward-only
-  auto-advance)।
+  `current_phase` PUT-এ set করা যায় না — forward-only auto-advance
+  (`maybeAdvancePhase`): CodingData-তে account select/todo add →
+  Plan→Coding (D1); D2-এ প্রথম SupportLog → →Support।
 - Success: single object বা `{ "data": [...] }`; error: `{ "error": "..." }`।
 - Dev: backend `npm start` (ডিফল্ট 3001), frontend `npm run dev` (ডিফল্ট 3000);
   frontend-এর `/api/*` reverse proxy হয়ে backend-এ যায়।
 
 ## এরপর কী করতে হবে
-**গ্রুপ C (Phase 3 — Plan ট্যাব) সম্পূর্ণ, ম্যানুয়াল মোডে।** AI ON-state
-জেনারেশন গ্রুপ G-তে যোগ হবে। পরের কাজ: **গ্রুপ D (Coding + Support Claude,
-D1 থেকে)** — D1-এ B2-এর mini-widget আর CodingData API ব্যবহার হবে। প্রম্পট
-`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (C2 লাইন ~643; D1 লাইন
-~700)।
+**গ্রুপ D (Phase 4 — Coding + Support Claude) শুরু, D1 (Coding ট্যাব) সম্পূর্ণ,
+ম্যানুয়াল মোডে।** পরের কাজ: **chunk D2 (SupportLog backend + active Claude
+account tracking)** — D2-এ SupportLog CRUD/ordering, `active_claude_account_id`
+(CodingData-তেই বা নতুন entity), B1-এর mark-used (type=claude), আর D1-এরই
+`maybeAdvancePhase` প্যাটার্নে →Support auto-advance। প্রম্পট
+`docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md`-এ (D1 লাইন ~690; D2 লাইন ~732)।
 
 ## রেফারেন্স
 - `docs/WORK_STATION_PANEL_GITHUB_CHUNK_PLAN.md` — সম্পূর্ণ চাংক প্ল্যান
-  (B2 সেকশন, লাইন ~565; C1 সেকশন, লাইন ~606; C2 সেকশন, লাইন ~643)।
+  (B2 সেকশন, লাইন ~565; C1 সেকশন, লাইন ~606; C2 সেকশন, লাইন ~643; D1
+  সেকশন, লাইন ~690; D2 সেকশন, লাইন ~732)।
 
 ## কনভেনশন
 - single source of truth রাখা, duplicate না করে import করা।

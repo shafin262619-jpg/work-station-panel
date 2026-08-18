@@ -1,11 +1,11 @@
 import ProjectShell from '@/components/project/ProjectShell';
-import NoteArea from '@/components/project/NoteArea';
+import CodingTab from '@/components/project/CodingTab';
 
 export default async function ProjectCodingPage({ params }) {
   const { id } = await params;
   return (
     <ProjectShell projectId={id} activeTab="coding">
-      <NoteArea projectId={id} tab="coding" label="Coding note" />
+      <CodingTab projectId={id} />
     </ProjectShell>
   );
 }

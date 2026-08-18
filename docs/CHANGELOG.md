@@ -1,5 +1,31 @@
 # Work Station Panel — Changelog
 
+## 2026-08-18 — chunk D1 (Coding tab — repo link, monkey account select, todo list)
+- `app/project/[id]/coding` পেজে NoteArea-র বদলে **CodingTab** client
+  কম্পোনেন্ট (`components/project/CodingTab.jsx`) — ৩টা কার্ড + নোট এরিয়া:
+  - **GitHub Repo** — Overview-এর `github_link` read-only reuse (ক্লিকেবল
+    লিংক; খালি থাকলে "set it in the Overview tab" হিন্ট)।
+  - **Active Monkey Account** — B2-এর **AccountMiniWidget** বসানো
+    (`filterType="monkey"` + `activeId`): সিলেক্ট করলে
+    `PUT /api/projects/:projectId/coding` → `active_monkey_account_id` সেভ,
+    তারপর `POST /api/accounts/:id/mark-used` (`last_used_project` =
+    project name)। 
+  - **Todo Checklist** — `coding_data.todo_list`-এ `{ id, text, done }`
+    দিয়ে add/check/delete; পুরনো string-array ডেটা normalize হয়ে render।
+- **AccountMiniWidget-এ অপশনাল `filterType` + `activeId` prop** (নন-ব্রেকিং)।
+- **Phase auto-advance (forward-only)** — নতুন `backend/src/phaseAdvance.js`
+  `maybeAdvancePhase()` `['Plan','Coding','Support','Checker']` অর্ডারে শুধু
+  সামনে নেয়। CodingData POST/PUT-এ মাংকি account select বা প্রথম todo add
+  হলে Plan→Coding; already-Support/Checker অবস্থায় ওভাররাইট হয় না।
+- স্টাইল: `globals.css`-এ coding-tab/coding-repo/coding-account/coding-todos +
+  mini-widget active state।
+- টেস্ট: backend `phaseAdvance.test.js` (হেল্পার unit + codingData
+  integration: Plan→Coding, empty todo/null account advance করে না, past-phase
+  ওভাররাইট নয়) + frontend `coding-tab.test.jsx` (repo link, monkey-only
+  widget, select → PUT+mark-used, todo CRUD, note area) + mini-widget
+  filterType/activeId — **backend ১১৫ + frontend ৬২ টা টেস্ট পাস**;
+  `npm run build` সফল; লাইভ proxy smoke-test সফল।
+
 ## 2026-08-18 — chunk C2 (Plan tab UI — 4 sub-sections with timestamps)
 - `app/project/[id]/plan` পেজে NoteArea-র বদলে **PlanTab** client কম্পোনেন্ট
   (`components/project/PlanTab.jsx`) — ৪টা সাব-সেকশন কার্ড, C1-এর

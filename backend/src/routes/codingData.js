@@ -2,11 +2,25 @@
 
 const express = require('express');
 const { now, parseId } = require('../helpers');
+const { maybeAdvancePhase } = require('../phaseAdvance');
 
 function parseTodoList(value) {
   if (value === null || value === undefined) return null;
   if (typeof value === 'string') return value;
   return JSON.stringify(value);
+}
+
+// Returns true when the request (a) selects a monkey account, or (b) adds a
+// first non-empty todo item. Either signals that coding has started, which is
+// what triggers the forward-only Plan → Coding phase advance (chunk D1).
+function triggersCodingStart(body) {
+  if (body.active_monkey_account_id !== undefined && body.active_monkey_account_id !== null) {
+    return true;
+  }
+  if (body.todo_list === undefined || body.todo_list === null) return false;
+  if (Array.isArray(body.todo_list)) return body.todo_list.length > 0;
+  const text = String(body.todo_list).trim();
+  return text !== '' && text !== '[]';
 }
 
 function buildRow(row) {
@@ -70,6 +84,7 @@ module.exports = function codingDataRouter(db) {
       )
       .run(req.projectId, accountId, todoList, ts, ts);
     const row = db.prepare('SELECT * FROM coding_data WHERE id = ?').get(result.lastInsertRowid);
+    if (triggersCodingStart(body)) maybeAdvancePhase(db, req.projectId, 'Coding');
     res.status(201).json(buildRow(row));
   });
 
@@ -106,6 +121,7 @@ module.exports = function codingDataRouter(db) {
       if (sets.length > 0) {
         db.prepare(`UPDATE coding_data SET ${sets.join(', ')}, updated_at = @updated_at WHERE id = @id`).run(params);
       }
+      if (triggersCodingStart(body)) maybeAdvancePhase(db, req.projectId, 'Coding');
       res.json(buildRow(selectByProject.get(req.projectId)));
     } else {
       if (Object.keys(values).length === 0) {
@@ -119,6 +135,7 @@ module.exports = function codingDataRouter(db) {
         )
         .run(req.projectId, values.active_monkey_account_id ?? null, values.todo_list ?? null, ts, ts);
       const row = db.prepare('SELECT * FROM coding_data WHERE id = ?').get(result.lastInsertRowid);
+      if (triggersCodingStart(body)) maybeAdvancePhase(db, req.projectId, 'Coding');
       res.status(201).json(buildRow(row));
     }
   });

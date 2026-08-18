@@ -254,4 +254,38 @@ describe('AccountMiniWidget', () => {
       expect.objectContaining({ id: 2, label: 'Monkey 1' })
     );
   });
+
+  it('filters the list to a single account type via filterType', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve(
+        jsonResponse({
+          data: [
+            makeAccount({ id: 1, type: 'claude', label: 'Claude 1', status: 'available' }),
+            makeAccount({ id: 2, label: 'Monkey 1', status: 'available' }),
+          ],
+        })
+      )
+    );
+    render(<AccountMiniWidget filterType="monkey" />);
+    expect(await screen.findByText('Monkey 1')).toBeInTheDocument();
+    expect(screen.queryByText('Claude 1')).not.toBeInTheDocument();
+  });
+
+  it('marks the active account row via activeId', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve(
+        jsonResponse({
+          data: [
+            makeAccount({ id: 1, label: 'Monkey 1', status: 'available' }),
+            makeAccount({ id: 2, label: 'Monkey 2', status: 'available' }),
+          ],
+        })
+      )
+    );
+    render(<AccountMiniWidget activeId={1} onSelect={() => {}} />);
+    const active = await screen.findByRole('button', { name: /Monkey 1/i });
+    const inactive = screen.getByRole('button', { name: /Monkey 2/i });
+    expect(active).toHaveAttribute('aria-pressed', 'true');
+    expect(inactive).toHaveAttribute('aria-pressed', 'false');
+  });
 });

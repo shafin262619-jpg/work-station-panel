@@ -5,8 +5,15 @@ import { sortAccounts } from './accountUtils';
 
 // Reusable, compact account-status widget. Fetches its own data and lists
 // available accounts first. Wired into the Coding / Support Claude tabs in
-// group D; `onSelect` is optional for picking an account there.
-export default function AccountMiniWidget({ title = 'AI Accounts', onSelect }) {
+// group D; `onSelect` is optional for picking an account there. `filterType`
+// narrows the list to one account type (e.g. "monkey"), and `activeId`
+// highlights the currently selected account row.
+export default function AccountMiniWidget({
+  title = 'AI Accounts',
+  onSelect,
+  filterType,
+  activeId,
+}) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +37,10 @@ export default function AccountMiniWidget({ title = 'AI Accounts', onSelect }) {
     };
   }, []);
 
-  const sorted = sortAccounts(accounts);
+  const filtered = filterType
+    ? accounts.filter((account) => account.type === filterType)
+    : accounts;
+  const sorted = sortAccounts(filtered);
 
   return (
     <section className="mini-widget" aria-label={title}>
@@ -52,16 +62,17 @@ export default function AccountMiniWidget({ title = 'AI Accounts', onSelect }) {
                 <span className="mini-widget__type">{account.type}</span>
               </>
             );
+            const rowClass = `mini-widget__row mini-widget__row--${account.status}${
+              activeId === account.id ? ' mini-widget__row--active' : ''
+            }`;
             return (
-              <li
-                key={account.id}
-                className={`mini-widget__row mini-widget__row--${account.status}`}
-              >
+              <li key={account.id} className={rowClass}>
                 {onSelect ? (
                   <button
                     type="button"
                     className="mini-widget__btn"
                     onClick={() => onSelect(account)}
+                    aria-pressed={activeId === account.id}
                   >
                     {content}
                   </button>
